@@ -1,91 +1,21 @@
 services:
-  es01:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
-    container_name: es01
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: es-demo
     environment:
-      node.name: es01
-      cluster.name: es-docker-cluster
-      discovery.seed_hosts: es02,es03
-      cluster.initial_master_nodes: es01,es02,es03
-      bootstrap.memory_lock: "true"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-      xpack.security.enabled: "false"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - esdata01:/usr/share/elasticsearch/data
+      - node.name=es-demo
+      - cluster.name=es-demo-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      # Set low watermark thresholds so we can simulate "disk full"
+      - cluster.routing.allocation.disk.watermark.low=70%
+      - cluster.routing.allocation.disk.watermark.high=75%
+      - cluster.routing.allocation.disk.watermark.flood_stage=80%
     ports:
-      - 9200:9200
-      - 9300:9300
-    networks:
-      - es-net
-    depends_on:
-      - es02
-      - es03
-
-  es02:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
-    container_name: es02
-    environment:
-      node.name: es02
-      cluster.name: es-docker-cluster
-      discovery.seed_hosts: es01,es03
-      cluster.initial_master_nodes: es01,es02,es03
-      bootstrap.memory_lock: "true"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-      xpack.security.enabled: "false"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
+      - "9200:9200"
     volumes:
-      - esdata02:/usr/share/elasticsearch/data
-    networks:
-      - es-net
-
-  es03:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
-    container_name: es03
-    environment:
-      node.name: es03
-      cluster.name: es-docker-cluster
-      discovery.seed_hosts: es01,es02
-      cluster.initial_master_nodes: es01,es02,es03
-      bootstrap.memory_lock: "true"
-      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
-      xpack.security.enabled: "false"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - esdata03:/usr/share/elasticsearch/data
-    networks:
-      - es-net
-
-  es-init:
-    image: curlimages/curl:8.3.0
-    depends_on:
-      - es01
-    entrypoint: >
-      /bin/sh -c "
-      echo 'Waiting for Elasticsearch to start...';
-      until curl -s http://es01:9200 >/dev/null; do sleep 5; done;
-      echo 'Creating sample indices...';
-      for i in 1 2 3 4 5 6; do
-        curl -s -X PUT http://es01:9200/logs-2026.02.$i -H 'Content-Type: application/json' -d '{\"settings\": {\"number_of_shards\":1,\"number_of_replicas\":0}}';
-      done;
-      echo 'Sample indices created.'"
-    networks:
-      - es-net
+      - esdata:/usr/share/elasticsearch/data
 
 volumes:
-  esdata01:
-  esdata02:
-  esdata03:
-
-networks:
-  es-net:
-    driver: bridge
+  esdata:
